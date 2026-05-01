@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronometro Subbuteo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a5f1a 0%, #2d8f2d 50%, #1a5f1a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .main-container {
+            max-width: 900px;
+            width: 100%;
+        }
+        /* Header con logo personalizzabile */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo-container {
+            width: 200px;
+            height: 80px;
+            margin: 0 auto 10px;
+            background: #fff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: pointer;
+            border: 3px solid #ffd700;
+        }
+        .logo-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .logo-placeholder {
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+        }
+        h1 {
+            color: #fff;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            font-size: 2.5rem;
+        }
+        /* Display principale */
+        .scoreboard {
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.1);
+            border: 4px solid #ffd700;
+        }
+        .teams-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .team {
+            text-align: center;
+            flex: 1;
+        }
+        .team-name {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .team-name input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid #ffd700;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            width: 150px;
+            text-transform: uppercase;
+        }
+        .score {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+            font-family: 'Courier New', monospace;
+        }
+        .score-btn {
+            background: linear-gradient(180deg, #444 0%, #222 100%);
+            border: 2px solid #666;
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.2s;
+        }
+        .score-btn:hover {
+            background: linear-gradient(180deg, #666 0%, #444 100%);
+            transform: scale(1.1);
+        }
+        .vs {
+            font-size: 2rem;
+            color: #ffd700;
+            font-weight: bold;
+        }
+        /* Timer display */
+        .timer-section {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        .period-indicator {
+            color: #ffd700;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .timer-display {
+            font-size: 8rem;
+            font-weight: bold;
+            color: #00ff88;
+            text-shadow: 0 0 30px #00ff88, 0 0 60px #00ff88;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 5px;
+        }
+        .timer-display.warning {
+            color: #ffaa00;
+            text-shadow: 0 0 30px #ffaa00, 0 0 60px #ffaa00;
+        }
+        .timer-display.danger {
+            color: #ff4444;
+            text-shadow: 0 0 30px #ff4444, 0 0 60px #ff4444;
+            animation: blink 0.5s infinite;
+        }
+        .timer-display.paused {
+            color: #888;
+            text-shadow: none;
+        }
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+        .delay-indicator {
+            color: #ff6b6b;
+            font-size: 1.5rem;
+            margin-top: 10px;
+            display: none;
+        }
+        .delay-indicator.active {
+            display: block;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        /* Controlli */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-start {
+            background: linear-gradient(180deg, #00cc66 0%, #009944 100%);
+            color: #fff;
+        }
+        .btn-start:hover {
+            background: linear-gradient(180deg, #00dd77 0%, #00aa55 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,204,102,0.5);
+        }
+        .btn-pause {
+            background: linear-gradient(180deg, #ffaa00 0%, #ff8800 100%);
+            color: #fff;
+        }
+        .btn-pause:hover {
+            background: linear-gradient(180deg, #ffbb22 0%, #ff9922 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,170,0,0.5);
+        }
+        .btn-reset {
+            background: linear-gradient(180deg, #ff4444 0%, #cc2222 100%);
+            color: #fff;
+        }
+        .btn-reset:hover {
+            background: linear-gradient(180deg, #ff5555 0%, #dd3333 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,68,68,0.5);
+        }
+        .btn-delay {
+            background: linear-gradient(180deg, #6644ff 0%, #4422cc 100%);
+            color: #fff;
+        }
+        .btn-delay:hover {
+            background: linear-gradient(180deg, #7755ff 0%, #5533dd 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,68,255,0.5);
+        }
+        /* Pannello impostazioni */
+        .settings-panel {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .settings-title {
+            color: #1a5f1a;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #1a5f1a;
+            padding-bottom: 10px;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .setting-group {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .setting-group h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .setting-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .setting-group input[type="number"],
+        .setting-group input[type="text"],
+        .setting-group select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        .setting-group input[type="file"] {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        .file-preview {
+            max-width: 100px;
+            max-height: 60px;
+            margin-top: 5px;
+            border-radius: 5px;
+        }
+        .audio-preview {
+            width: 100%;
+            margin-top: 5px;
+        }
+        /* Sezione suoni pause programmate */
+        .scheduled-sounds {
+            margin-top: 15px;
+        }
+        .scheduled-sound-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 5px;
+        }
+        .scheduled-sound-item input {
+            flex: 1;
+        }
+        .btn-remove-sound {
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-add-sound {
+            background: #00cc66;
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        /* Background personalizzabile */
+        .custom-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            object-fit: cover;
+            display: none;
+        }
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        .status-item {
+            text-align: center;
+            color: #fff;
+        }
+        .status-label {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        /* Animazione goal */
+        .goal-animation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10rem;
+            color: #ffd700;
+            text-shadow: 0 0 50px #ffd700;
+            z-index: 1000;
+            animation: goalPop 1.5s ease-out forwards;
+            pointer-events: none;
+            display: none;
+        }
+        @keyframes goalPop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+        /* Theme selector */
+        .theme-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .theme-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .theme-btn:hover {
+            transform: scale(1.1);
+        }
+        .theme-btn.active {
+            border-color: #ffd700;
+            box-shadow: 0 0 10px #ffd700;
+        }
+        /* Responsive */
+        @media (max-width: 600px) {
+            .timer-display {
+                font-size: 4rem;
+            }
+            .score {
+                font-size: 3rem;
+            }
+            .btn {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <img id="customBg" class="custom-bg" alt="Background personalizzato">
+    <div id="goalAnimation" class="goal-animation">⚽ GOAL! ⚽</div>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-container" onclick="document.getElementById('logoInput').click()">
+                <img id="logoPreview" src="" alt="" style="display:none;">
+                <span id="logoPlaceholder" class="logo-placeholder">📷 Clicca per<br>caricare logo</span>
+            </div>
+            <input type="file" id="logoInput" accept="image/*" style="display:none;">
+            <h1>⚽ SUBBUTEO TIMER ⚽</h1>
+        </div>
+        <!-- Scoreboard -->
+        <div class="scoreboard">
+            <div class="teams-container">
+                <div class="team">
+                    <div class="team-name">
+                        <input type="text" id="homeTeam" value="CASA" maxlength="12">
+                    </div>
+                    <div class="score" id="homeScore">0</div>
+                    <div>
+                        <button class="score-btn" onclick="changeScore('home', -1)">−</button>
+                        <button class="score-btn" onclick="changeScore('home', 1)">+</button>
+                    </div>
+                </div>
+                
+                <div class="vs">VS</div>
+                
+                <div class="team">
+                    <div class="team-name">
+                        <input type="text" id="awayTeam" value="OSPITI" maxlength="12">
+                    </div>
+                    <div class="score" id="awayScore">0</div>
+                    <div>
+                        <button class="score-btn" onclick="changeScore('away', -1)">−</button>
+                        <button class="score-btn" onclick="changeScore('away', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Timer -->
+            <div class="timer-section">
+                <div class="period-indicator" id="periodIndicator">1° TEMPO</div>
+                <div class="timer-display" id="timerDisplay">15:00</div>
+                <div class="delay-indicator" id="delayIndicator">⏱️ RECUPERO: <span id="delayTime">00:00</span></div>
+            </div>
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-label">Durata Tempo</div>
+                    <div class="status-value" id="statusDuration">15:00</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Pausa</div>
+                    <div class="status-value" id="statusBreak">2:00</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Recupero</div>
+                    <div class="status-value" id="statusDelay">0:00</div>
+                </div>
+            </div>
+            <!-- Controls -->
+            <div class="controls">
+                <button class="btn btn-start" id="btnStart" onclick="startTimer()">▶ AVVIA</button>
+                <button class="btn btn-pause" id="btnPause" onclick="pauseTimer()" style="display:none;">⏸ PAUSA</button>
+                <button class="btn btn-delay" onclick="addDelay()">⏱️ +30s RECUPERO</button>
+                <button class="btn btn-reset" onclick="resetMatch()">🔄 RESET</button>
+            </div>
+        </div>
+        <!-- Settings Panel -->
+        <div class="settings-panel">
+            <h2 class="settings-title">⚙️ IMPOSTAZIONI</h2>
+            
+            <div class="settings-grid">
+                <!-- Tempi -->
+                <div class="setting-group">
+                    <h3>⏱️ Durata Partita</h3>
+                    <label>Durata tempo (minuti):</label>
+                    <input type="number" id="periodDuration" value="15" min="1" max="45" onchange="updateSettings()">
+                    
+                    <label>Pausa tra i tempi (minuti):</label>
+                    <input type="number" id="breakDuration" value="2" min="0" max="15" onchange="updateSettings()">
+                    
+                    <label>Recupero da aggiungere (secondi):</label>
+                    <input type="number" id="delayIncrement" value="30" min="5" max="120">
+                </div>
+                <!-- Aspetto -->
+                <div class="setting-group">
+                    <h3>🎨 Aspetto</h3>
+                    <label>Tema colore:</label>
+                    <div class="theme-selector">
+                        <button class="theme-btn active" style="background: linear-gradient(135deg, #1a5f1a, #2d8f2d);" onclick="setTheme('green')"></button>
+                        <button class="theme-btn" style="background: linear-gradient(135deg, #1a1a5f, #2d2d8f);" onclick="setTheme('blue')"></button>
+                        <button class="theme-btn" style="background: linear-gradient(135deg, #5f1a1a, #8f2d2d);" onclick="setTheme('red')"></button>
+                        <button class="theme-btn" style="background: linear-gradient(135deg, #5f5f1a, #8f8f2d);" onclick="setTheme('gold')"></button>
+                        <button class="theme-btn" style="background: linear-gradient(135deg, #333, #666);" onclick="setTheme('dark')"></button>
+                    </div>
+                    
+                    <label>Sfondo personalizzato:</label>
+                    <input type="file" id="bgInput" accept="image/*" onchange="loadCustomBg(this)">
+                </div>
+                <!-- Suoni principali -->
+                <div class="setting-group">
+                    <h3>🔊 Suoni Partita</h3>
+                    <label>Suono inizio tempo:</label>
+                    <input type="file" id="startSound" accept="audio/*" onchange="loadSound(this, 'start')">
+                    <audio id="startAudio" class="audio-preview" controls style="display:none;"></audio>
+                    
+                    <label>Suono fine tempo:</label>
+                    <input type="file" id="endSound" accept="audio/*" onchange="loadSound(this, 'end')">
+                    <audio id="endAudio" class="audio-preview" controls style="display:none;"></audio>
+                    
+                    <label>Suono goal:</label>
+                    <input type="file" id="goalSound" accept="audio/*" onchange="loadSound(this, 'goal')">
+                    <audio id="goalAudio" class="audio-preview" controls style="display:none;"></audio>
+                </div>
+                <!-- Musica pausa -->
+                <div class="setting-group">
+                    <h3>🎵 Musica Pausa/Intervallo</h3>
+                    <label>Musica intervallo:</label>
+                    <input type="file" id="breakMusic" accept="audio/*" onchange="loadSound(this, 'break')">
+                    <audio id="breakAudio" class="audio-preview" controls style="display:none;"></audio>
+                    
+                    <label>Volume musica:</label>
+                    <input type="range" id="musicVolume" min="0" max="100" value="50" onchange="updateVolume()">
+                </div>
+                <!-- Suoni programmati -->
+                <div class="setting-group">
+                    <h3>⏰ Suoni Programmati</h3>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                        Aggiungi suoni che si attiveranno a momenti specifici durante la partita
+                    </p>
+                    <div id="scheduledSoundsContainer" class="scheduled-sounds">
+                        <!-- I suoni programmati verranno aggiunti qui -->
+                    </div>
+                    <button class="btn-add-sound" onclick="addScheduledSound()">+ Aggiungi Suono Programmato</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Audio elements nascosti -->
+    <audio id="defaultWhistle" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGY+OG+i0NSoUjI3dafW2Z9DMzhzotLUpEsvMnWn2NybPy0vdKjY3Jk8LS91p9jcmTwtL3Wn2NyZPC0vdafY3Jk8LS91p9jcmTwtL3Wn2NyZPC0vdA==" type="audio/wav">
+    </audio>
+    <script>
+        // Stato del gioco
+        let gameState = {
+            period: 1,
+            timeRemaining: 15 * 60, // in secondi
+            delayTime: 0,
+            isRunning: false,
+            isBreak: false,
+            homeScore: 0,
+            awayScore: 0,
+            periodDuration: 15 * 60,
+            breakDuration: 2 * 60,
+            delayIncrement: 30,
+            scheduledSounds: []
+        };
+        let timerInterval = null;
+        let delayInterval = null;
+        // Carica impostazioni salvate
+        function loadSavedSettings() {
+            const saved = localStorage.getItem('subbuteoSettings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                document.getElementById('periodDuration').value = settings.periodDuration || 15;
+                document.getElementById('breakDuration').value = settings.breakDuration || 2;
+                document.getElementById('delayIncrement').value = settings.delayIncrement || 30;
+                updateSettings();
+            }
+        }
+        // Aggiorna impostazioni
+        function updateSettings() {
+            const periodMin = parseInt(document.getElementById('periodDuration').value) || 15;
+            const breakMin = parseInt(document.getElementById('breakDuration').value) || 2;
+            
+            gameState.periodDuration = periodMin * 60;
+            gameState.breakDuration = breakMin * 60;
+            gameState.delayIncrement = parseInt(document.getElementById('delayIncrement').value) || 30;
+            
+            if (!gameState.isRunning && gameState.period === 1 && gameState.timeRemaining === 15 * 60) {
+                gameState.timeRemaining = gameState.periodDuration;
+                updateDisplay();
+            }
+            
+            document.getElementById('statusDuration').textContent = `${periodMin}:00`;
+            document.getElementById('statusBreak').textContent = `${breakMin}:00`;
+            
+            // Salva impostazioni
+            localStorage.setItem('subbuteoSettings', JSON.stringify({
+                periodDuration: periodMin,
+                breakDuration: breakMin,
+                delayIncrement: gameState.delayIncrement
+            }));
+        }
+        // Formatta tempo
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        // Aggiorna display
+        function updateDisplay() {
+            const display = document.getElementById('timerDisplay');
+            display.textContent = formatTime(gameState.timeRemaining);
+            
+            // Cambia colore in base al tempo rimanente
+            display.classList.remove('warning', 'danger', 'paused');
+            if (!gameState.isRunning) {
+                display.classList.add('paused');
+            } else if (gameState.timeRemaining <= 60) {
+                display.classList.add('danger');
+            } else if (gameState.timeRemaining <= 180) {
+                display.classList.add('warning');
+            }
+            
+            // Aggiorna indicatore periodo
+            const periodIndicator = document.getElementById('periodIndicator');
+            if (gameState.isBreak) {
+                periodIndicator.textContent = '⏸️ INTERVALLO';
+            } else {
+                periodIndicator.textContent = `${gameState.period}° TEMPO`;
+            }
+            
+            // Aggiorna delay
+            const delayIndicator = document.getElementById('delayIndicator');
+            document.getElementById('delayTime').textContent = formatTime(gameState.delayTime);
+            document.getElementById('statusDelay').textContent = formatTime(gameState.delayTime);
+            delayIndicator.classList.toggle('active', gameState.delayTime > 0);
+        }
+        // Avvia timer
+        function startTimer() {
+            if (gameState.isRunning) return;
+            
+            gameState.isRunning = true;
+            document.getElementById('btnStart').style.display = 'none';
+            document.getElementById('btnPause').style.display = 'inline-block';
+            
+            // Suona fischio inizio
+            playSound('start');
+            
+            // Ferma musica pausa
+            stopBreakMusic();
+            
+            timerInterval = setInterval(() => {
+                if (gameState.timeRemaining > 0) {
+                    gameState.timeRemaining--;
+                    updateDisplay();
+                    checkScheduledSounds();
+                } else if (gameState.delayTime > 0) {
+                    // Tempo di recupero
+                    gameState.delayTime--;
+                    document.getElementById('delayTime').textContent = formatTime(gameState.delayTime);
+                    document.getElementById('statusDelay').textContent = formatTime(gameState.delayTime);
+                } else {
+                    // Fine tempo
+                    endPeriod();
+                }
+            }, 1000);
+        }
+        // Pausa timer
+        function pauseTimer() {
+            gameState.isRunning = false;
+            clearInterval(timerInterval);
+            
+            document.getElementById('btnStart').style.display = 'inline-block';
+            document.getElementById('btnPause').style.display = 'none';
+            document.getElementById('btnStart').innerHTML = '▶ RIPRENDI';
+            
+            updateDisplay();
+        }
+        // Fine periodo
+        function endPeriod() {
+            clearInterval(timerInterval);
+            gameState.isRunning = false;
+            
+            // Suona fischio fine
+            playSound('end');
+            
+            if (gameState.period === 1) {
+                // Inizia intervallo
+                gameState.isBreak = true;
+                gameState.timeRemaining = gameState.breakDuration;
+                updateDisplay();
+                
+                // Avvia musica intervallo
+                playBreakMusic();
+                
+                // Timer intervallo
+                timerInterval = setInterval(() => {
+                    if (gameState.timeRemaining > 0) {
+                        gameState.timeRemaining--;
+                        updateDisplay();
+                    } else {
+                        // Fine intervallo
+                        clearInterval(timerInterval);
+                        stopBreakMusic();
+                        gameState.isBreak = false;
+                        gameState.period = 2;
+                        gameState.timeRemaining = gameState.periodDuration;
+                        gameState.delayTime = 0;
+                        updateDisplay();
+                        
+                        document.getElementById('btnStart').style.display = 'inline-block';
+                        document.getElementById('btnPause').style.display = 'none';
+                        document.getElementById('btnStart').innerHTML = '▶ AVVIA 2° TEMPO';
+                    }
+                }, 1000);
+            } else {
+                // Fine partita
+                document.getElementById('periodIndicator').textContent = '🏆 FINE PARTITA 🏆';
+                document.getElementById('btnStart').style.display = 'inline-block';
+                document.getElementById('btnPause').style.display = 'none';
+                document.getElementById('btnStart').innerHTML = '🔄 NUOVA PARTITA';
+                document.getElementById('btnStart').onclick = resetMatch;
+            }
+        }
+        // Aggiungi tempo di recupero
+        function addDelay() {
+            gameState.delayTime += gameState.delayIncrement;
+            updateDisplay();
+        }
+        // Cambia punteggio
+        function changeScore(team, delta) {
+            if (team === 'home') {
+                gameState.homeScore = Math.max(0, gameState.homeScore + delta);
+                document.getElementById('homeScore').textContent = gameState.homeScore;
+            } else {
+                gameState.awayScore = Math.max(0, gameState.awayScore + delta);
+                document.getElementById('awayScore').textContent = gameState.awayScore;
+            }
+            
+            if (delta > 0) {
+                playSound('goal');
+                showGoalAnimation();
+            }
+        }
+        // Animazione goal
+        function showGoalAnimation() {
+            const goalAnim = document.getElementById('goalAnimation');
+            goalAnim.style.display = 'block';
+            setTimeout(() => {
+                goalAnim.style.display = 'none';
+            }, 1500);
+        }
+        // Reset partita
+        function resetMatch() {
+            clearInterval(timerInterval);
+            
+            gameState.period = 1;
+            gameState.timeRemaining = gameState.periodDuration;
+            gameState.delayTime = 0;
+            gameState.isRunning = false;
+            gameState.isBreak = false;
+            gameState.homeScore = 0;
+            gameState.awayScore = 0;
+            
+            document.getElementById('homeScore').textContent = '0';
+            document.getElementById('awayScore').textContent = '0';
+            document.getElementById('btnStart').style.display = 'inline-block';
+            document.getElementById('btnPause').style.display = 'none';
+            document.getElementById('btnStart').innerHTML = '▶ AVVIA';
+            document.getElementById('btnStart').onclick = startTimer;
+            
+            stopBreakMusic();
+            updateDisplay();
+        }
+        // Gestione suoni
+        function loadSound(input, type) {
+            const file = input.files[0];
+            if (file) {
+                const audio = document.getElementById(type + 'Audio');
+                audio.src = URL.createObjectURL(file);
+                audio.style.display = 'block';
+                audio.load();
+            }
+        }
+        function playSound(type) {
+            const audio = document.getElementById(type + 'Audio');
+            if (audio && audio.src) {
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            } else if (type === 'start' || type === 'end') {
+                // Suono predefinito (fischio)
+                const defaultWhistle = document.getElementById('defaultWhistle');
+                defaultWhistle.currentTime = 0;
+                defaultWhistle.play().catch(() => {});
+            }
+        }
+        function playBreakMusic() {
+            const audio = document.getElementById('breakAudio');
+            if (audio && audio.src) {
+                audio.loop = true;
+                audio.play().catch(() => {});
+            }
+        }
+        function stopBreakMusic() {
+            const audio = document.getElementById('breakAudio');
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        }
+        function updateVolume() {
+            const volume = document.getElementById('musicVolume').value / 100;
+            document.getElementById('breakAudio').volume = volume;
+        }
+        // Suoni programmati
+        let scheduledSoundCounter = 0;
+        function addScheduledSound() {
+            const container = document.getElementById('scheduledSoundsContainer');
+            const id = scheduledSoundCounter++;
+            
+            const item = document.createElement('div');
+            item.className = 'scheduled-sound-item';
+            item.id = `scheduled-${id}`;
+            item.innerHTML = `
+                <input type="number" placeholder="Minuto" min="1" max="45" style="width: 70px;" id="schedMin-${id}">
+                <input type="file" accept="audio/*" onchange="loadScheduledSound(${id}, this)" style="flex: 2;">
+                <audio id="schedAudio-${id}" style="display:none;"></audio>
+                <button class="btn-remove-sound" onclick="removeScheduledSound(${id})">✕</button>
+            `;
+            container.appendChild(item);
+        }
+        function loadScheduledSound(id, input) {
+            const file = input.files[0];
+            if (file) {
+                const audio = document.getElementById(`schedAudio-${id}`);
+                audio.src = URL.createObjectURL(file);
+                audio.load();
+            }
+        }
+        function removeScheduledSound(id) {
+            const item = document.getElementById(`scheduled-${id}`);
+            if (item) item.remove();
+        }
+        function checkScheduledSounds() {
+            const elapsedMinutes = Math.floor((gameState.periodDuration - gameState.timeRemaining) / 60);
+            
+            document.querySelectorAll('[id^="scheduled-"]').forEach(item => {
+                const id = item.id.split('-')[1];
+                const minInput = document.getElementById(`schedMin-${id}`);
+                const audio = document.getElementById(`schedAudio-${id}`);
+                
+                if (minInput && audio && audio.src) {
+                    const targetMin = parseInt(minInput.value);
+                    if (targetMin === elapsedMinutes && gameState.timeRemaining % 60 === 0) {
+                        audio.currentTime = 0;
+                        audio.play().catch(() => {});
+                    }
+                }
+            });
+        }
+        // Temi
+        function setTheme(theme) {
+            const themes = {
+                green: 'linear-gradient(135deg, #1a5f1a 0%, #2d8f2d 50%, #1a5f1a 100%)',
+                blue: 'linear-gradient(135deg, #1a1a5f 0%, #2d2d8f 50%, #1a1a5f 100%)',
+                red: 'linear-gradient(135deg, #5f1a1a 0%, #8f2d2d 50%, #5f1a1a 100%)',
+                gold: 'linear-gradient(135deg, #5f5f1a 0%, #8f8f2d 50%, #5f5f1a 100%)',
+                dark: 'linear-gradient(135deg, #1a1a1a 0%, #333 50%, #1a1a1a 100%)'
+            };
+            
+            document.body.style.background = themes[theme];
+            document.getElementById('customBg').style.display = 'none';
+            
+            // Aggiorna pulsanti tema
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        // Sfondo personalizzato
+        function loadCustomBg(input) {
+            const file = input.files[0];
+            if (file) {
+                const bg = document.getElementById('customBg');
+                bg.src = URL.createObjectURL(file);
+                bg.style.display = 'block';
+                document.body.style.background = 'transparent';
+            }
+        }
+        // Logo personalizzato
+        document.getElementById('logoInput').addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const preview = document.getElementById('logoPreview');
+                const placeholder = document.getElementById('logoPlaceholder');
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+            }
+        });
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedSettings();
+            updateDisplay();
+        });
+        // Prevenzione chiusura accidentale durante partita
+        window.addEventListener('beforeunload', function(e) {
+            if (gameState.isRunning) {
+                e.preventDefault();
+                e.returnValue = 'La partita è in corso. Vuoi davvero uscire?';
+            }
+        });
+    </script>
+</body>
+</html>
+ 
+
