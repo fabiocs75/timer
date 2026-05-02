@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Cosenza Timer Edition</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+
+        /* Sfondo con immagine allegata */
+        .bg-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('bannerAsCosenzaBIG.jpeg');
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.3); /* Scurisce l'immagine per far risaltare il timer */
+            z-index: -1;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.4) 100%);
+        }
+
+        /* Pannello moderno semi-trasparente */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 40px;
+            padding: 60px 100px;
+            text-align: center; /* Centra il contenuto orizzontalmente[cite: 4] */
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+            width: 90%; 
+            max-width: 1100px; /* Aumentato per ospitare il timer più grande[cite: 4] */
+            position: relative;
+        }
+
+        .period-tag {
+            background: #c21d23; /* Rosso Cosenza */
+            color: white;
+            padding: 10px 30px;
+            border-radius: 50px;
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            display: inline-block;
+            box-shadow: 0 4px 20px rgba(194, 29, 35, 0.5);
+        }
+
+        .timer-val {
+            font-size: 20rem; 
+            font-weight: 900;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            margin: 20px 0;
+            text-align: center; /* Forza l'accentramento del testo[cite: 4] */
+            text-shadow: 0 0 60px rgba(0,0,0,0.8);
+            font-family: 'Inter', monospace;
+        }
+
+        /* Pulsanti Moderni e Minimali */
+        .modern-controls {
+            display: flex;
+            justify-content: space-between; /* Uno a sinistra, uno a destra */
+            align-items: center;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .m-btn {
+            border: none;
+            padding: 25px 50px;
+            border-radius: 20px;
+            font-size: 1.4rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            min-width: 250px;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+
+        .m-btn:active {
+            transform: scale(0.95);
+        }
+
+        .m-btn-primary {
+            background: #1d3557; /* Blu Cosenza */
+            color: white;
+            box-shadow: 0 10px 30px rgba(29, 53, 87, 0.4);
+        }
+
+        .m-btn-primary.running {
+            background: #c21d23; /* Diventa rosso quando in pausa */
+        }
+
+        .m-btn-outline {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .m-btn-outline:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: white;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="bg-image"></div>
+
+<div class="container">
+    <div class="glass-panel">
+        <div class="period-tag" id="period">1° TEMPO</div>
+        
+        <div class="timer-val" id="display">15:00</div>
+
+        <div class="modern-controls">
+            <!-- Tasto a sinistra -->
+            <button id="toggleBtn" class="m-btn m-btn-primary" onclick="toggleTimer()">
+                <span id="icon">▶</span> <span id="text">AVVIA</span>
+            </button>
+            
+            <!-- Tasto a destra -->
+            <button class="m-btn m-btn-outline" onclick="reset()">
+                <span>🔄</span> RESET
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let timeLeft = 15 * 60; // 15 minuti in secondi
+    let timerId = null;
+    let isRunning = false;
+
+    const display = document.getElementById('display');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const btnText = document.getElementById('text');
+    const btnIcon = document.getElementById('icon');
+
+    function updateDisplay() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+  
+      function toggleTimer() {
+        if (isRunning) {
+            // Logica Pausa
+            clearInterval(timerId);
+            btnText.textContent = "AVVIA";
+            btnIcon.textContent = "▶";
+            toggleBtn.classList.remove('running');
+            isRunning = false;
+        } else {
+            // Logica Avvio
+            isRunning = true;
+            btnText.textContent = "PAUSA";
+            btnIcon.textContent = "⏸";
+            toggleBtn.classList.add('running');
+            
+            timerId = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    clearInterval(timerId);
+                    alert("Tempo scaduto!");
+                    reset();
+                }
+            }, 1000);
+        }
+    }
+  
+  function reset() {
+        // Riporta il valore a 15:00
+        clearInterval(timerId);
+        timeLeft = 15 * 60;
+        isRunning = false;
+        btnText.textContent = "AVVIA";
+        btnIcon.textContent = "▶";
+        toggleBtn.classList.remove('running');
+        updateDisplay();
+    }
+    
+        // Inizializzazione
+    updateDisplay();
+    
+</script>    
+
+</body>
+</html>
