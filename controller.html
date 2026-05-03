@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Pannello di Controllo - Pro Match</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; padding: 20px; background: #f4f4f9; color: #333; }
+        .panel { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        .section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        h2 { margin-top: 0; color: #1d3557; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        label { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; display: block; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        .controls { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 15px; font-weight: 800; cursor: pointer; border: none; border-radius: 8px; text-transform: uppercase; }
+        .btn-start { background: #1d3557; color: white; }
+        .btn-pause { background: #c21d23; color: white; }
+        .btn-reset { background: #6c757d; color: white; }
+        .btn-apply { background: #ffd700; color: #000; margin-top: 10px; }
+        .sd-container { display: flex; align-items: center; background: #fff5f5; padding: 15px; border-radius: 8px; border: 1px solid #feb2b2; margin-top: 10px; }
+        .sd-container input { width: auto; margin-right: 15px; transform: scale(1.5); }
+        .sd-label { color: #c53030; font-weight: 900; }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <div class="section">
+            <h2>Configurazione Tempi</h2>
+            <div class="grid">
+                <div><label>Prepartita (min):</label><input type="number" id="cfgPre" value="5"></div>
+                <div><label>Tempo Gara (min):</label><input type="number" id="cfgTempo" value="15"></div>
+                <div><label>Intervallo (min):</label><input type="number" id="cfgInt" value="3"></div>
+                <div><label>Sudden Death (min):</label><input type="number" value="10" readonly></div>
+            </div>
+            
+            <div class="sd-container">
+                <input type="checkbox" id="sdEnabled">
+                <label for="sdEnabled" class="sd-label">ABILITA SUDDEN DEATH (Extra Time)</label>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Sincronizzazione Manuale</h2>
+            <div style="margin-bottom: 15px;">
+                <label>Salta alla Fase:</label>
+                <select id="phaseSelector" onchange="jumpToPhase()">
+                    <option value="0">PREPARTITA</option>
+                    <option value="1">1° TEMPO</option>
+                    <option value="2">INTERVALLO</option>
+                    <option value="3">2° TEMPO</option>
+                    <option value="4">PRE SUDDEN DEATH (30s)</option>
+                    <option value="5">SUDDEN DEATH (10m)</option>
+                </select>
+            </div>
+            <label>Imposta Tempo Fase Attuale (MM:SS):</label>
+            <input type="text" id="manualTime" placeholder="es. 09:45">
+            <button class="btn-apply" onclick="setManualTime()">Applica Tempo</button>
+        </div>
+
+        <div class="controls">
+            <button id="mainBtn" class="btn-start" onclick="toggleTimer()">Avvia</button>
+            <button class="btn-reset" onclick="resetMatch()">Reset Totale</button>
+        </div>
+        <p>Stato: <strong id="curPhaseText">PREPARTITA</strong></p>
+    </div>
+
+    <audio id="audioInizio" src="suoni/Start.mp3"></audio>
+    <audio id="audioFine" src="suoni/End.mp3"></audio>
+
+    <script>
+        let timeLeft, timerId = null, isRunning = false, currentPhase = 0, voicePlayed = false;
+        const phases = ["PREPARTITA", "1° TEMPO", "INTERVALLO", "2° TEMPO", "PRE SUDDEN DEATH", "SUDDEN DEATH"];
+
+        function syncDisplay() {
+            const min = Math.floor(Math.abs(timeLeft) / 60).toString().padStart(2, '0');
+            const sec = (Math.abs(timeLeft) % 60).toString().padStart(2, '0');
+            localStorage.setItem('timer_update', JSON.stringify({
+                time: `${min}:${sec}`,
+                phase: phases[currentPhase]
+            }));
+            document.getElementById('curPhaseText').textContent = phases[currentPhase];
+        }
+
+        function jumpToPhase() {
+            stopCountdown();
+            currentPhase = parseInt(document.getElementById('phaseSelector').value);
+            
+            const tempoEff = document.getElementById('cfgTempo').value * 60;
+            const intervallo = document.getElementById('cfgInt').value * 60;
+            const pre = document.getElementById('cfgPre').value * 60;
+
+            if (currentPhase === 0) timeLeft = pre;
+            else if (currentPhase === 1 || currentPhase === 3) timeLeft = tempoEff;
+            else if (currentPhase === 2) timeLeft = intervallo;
+            else if (currentPhase === 4) timeLeft = 30;
+            else if (currentPhase === 5) timeLeft = 10 * 60;
+
+            document.getElementById('mainBtn').textContent = "Avvia";
+            document.getElementById('mainBtn').className = "btn-start";
+            syncDisplay();
+        }
+
+        function setManualTime() {
+            const val = document.getElementById('manualTime').value;
+            const parts = val.split(':');
+            if (parts.length === 2) {
+                const m = parseInt(parts[0]);
+                const s = parseInt(parts[1]);
+                if (!isNaN(m) && !isNaN(s)) {
+                    timeLeft = (m * 60) + s;
+                    syncDisplay();
+                }
+            }
+        }
+
+        function toggleTimer() {
+            if (!isRunning) {
+                // Controlla se la fase richiede un fischio d'inizio e se siamo allo 0 del tempo trascorso
+                const isStartOfAction = (
+                    (currentPhase === 1 && timeLeft == document.getElementById('cfgTempo').value * 60) ||
+                    (currentPhase === 3 && timeLeft == document.getElementById('cfgTempo').value * 60) ||
+                    (currentPhase === 5 && timeLeft == 10 * 60)
+                );
+
+                if (isStartOfAction) {
+                    const audio = document.getElementById('audioInizio');
+                    audio.play();
+                    audio.onended = () => startCountdown();
+                } else {
+                    startCountdown();
+                }
+            } else {
+                stopCountdown();
+            }    
+
+           /* if (!isRunning) {
+                // Controlla se la fase richiede un fischio d'inizio e se siamo allo 0 del tempo trascorso
+                const isStartOfAction = (
+                    (currentPhase === 1 && timeLeft == document.getElementById('cfgTempo').value * 60) ||
+                    (currentPhase === 3 && timeLeft == document.getElementById('cfgTempo').value * 60) ||
+                    (currentPhase === 5 && timeLeft == 10 * 60)
+                );
+                
+                // Se siamo a fine secondo tempo e il check è attivo, carichiamo la Sudden Death
+                if (currentPhase === 3 && timeLeft === 0 && document.getElementById('sdEnabled').checked) {
+                    currentPhase = 4;
+                    timeLeft = 10 * 60; // 10 minuti Sudden Death
+                    syncDisplay();
+                }
+
+                if (!timerId && currentPhase === 0) timeLeft = document.getElementById('cfgPre').value * 60;
+                
+                isRunning = true;
+                document.getElementById('mainBtn').textContent = "Pausa";
+                document.getElementById('mainBtn').className = "btn-pause";
+                
+                timerId = setInterval(() => {
+                    if (timeLeft > 0) {
+                        timeLeft--;
+                        // Avviso vocale prepartita
+                        const vMin = 2; // Default 2 minuti
+                        if (currentPhase === 0 && timeLeft === (vMin * 60) && !voicePlayed) {
+                            const msg = new SpeechSynthesisUtterance("Mancano due minuti all'inizio della partita");
+                            msg.lang = 'it-IT'; window.speechSynthesis.speak(msg);
+                            voicePlayed = true;
+                        }
+                    } else {
+                        nextPhase();
+                    }
+                    syncDisplay();
+                }, 1000);
+            } else {
+                clearInterval(timerId);
+                isRunning = false;
+                document.getElementById('mainBtn').textContent = "Riprendi";
+                document.getElementById('mainBtn').className = "btn-start";
+            }*/
+        }
+
+        /*
+        function nextPhase() {
+    const tempoEff = document.getElementById('cfgTempo').value * 60;
+    const intervallo = document.getElementById('cfgInt').value * 60;
+
+    if (currentPhase === 0) { // Fine Prepartita -> 1° Tempo
+        currentPhase = 1;
+        document.getElementById('audioInizio').play();
+        timeLeft = tempoEff;
+    } else if (currentPhase === 1) { // Fine 1° Tempo -> Intervallo
+        currentPhase = 2;
+        document.getElementById('audioFine').play();
+        timeLeft = intervallo;
+    } else if (currentPhase === 2) { // Fine Intervallo -> 2° Tempo
+        currentPhase = 3;
+        document.getElementById('audioInizio').play();
+        timeLeft = tempoEff;
+    } else if (currentPhase === 3) { // Fine 2° Tempo
+        document.getElementById('audioFine').play();
+        clearInterval(timerId);
+        isRunning = false;
+        timeLeft = 0;
+        document.getElementById('mainBtn').textContent = "Avvia";
+        
+        // Se Sudden Death è abilitata, carichiamo la PRE-fase di 30 secondi
+        if (document.getElementById('sdEnabled').checked) {
+            currentPhase = 4; // PRE SUDDEN DEATH
+            timeLeft = 30; 
+            syncDisplay();
+        } 
+    } else if (currentPhase === 4) { // Fine Pre Sudden Death -> Inizio Sudden Death
+        currentPhase = 5;
+        document.getElementById('audioInizio').play();
+        timeLeft = 10 * 60; // 10 minuti Sudden Death
+    } else if (currentPhase === 5) { // Fine Sudden Death
+        document.getElementById('audioFine').play();
+        clearInterval(timerId);
+        isRunning = false;
+    }
+    syncDisplay();
+}
+
+        function resetMatch() {
+            if(confirm("Vuoi resettare la partita dall'inizio?")) {
+                clearInterval(timerId);
+                timerId = null; isRunning = false; currentPhase = 0; voicePlayed = false;
+                timeLeft = document.getElementById('cfgPre').value * 60;
+                document.getElementById('mainBtn').textContent = "Avvia";
+                document.getElementById('mainBtn').className = "btn-start";
+                document.getElementById('sdEnabled').checked = false;
+                syncDisplay();
+            }
+        }
+
+        window.onload = () => {
+            timeLeft = document.getElementById('cfgPre').value * 60;
+            syncDisplay();
+        };
+
+*/
+
+                function startCountdown() {
+            if (isRunning) return;
+            isRunning = true;
+            document.getElementById('mainBtn').textContent = "Pausa";
+            document.getElementById('mainBtn').className = "btn-pause";
+            
+            timerId = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    // Avviso vocale prepartita
+                    if (currentPhase === 0 && timeLeft === 120 && !voicePlayed) {
+                        const msg = new SpeechSynthesisUtterance("Mancano due minuti all'inizio della partita");
+                        msg.lang = 'it-IT'; window.speechSynthesis.speak(msg);
+                        voicePlayed = true;
+                    }
+                } else {
+                    nextPhase();
+                }
+                syncDisplay();
+            }, 1000);
+        }
+
+        function stopCountdown() {
+            clearInterval(timerId);
+            timerId = null;
+            isRunning = false;
+            document.getElementById('mainBtn').textContent = "Riprendi";
+            document.getElementById('mainBtn').className = "btn-start";
+        }
+
+        function nextPhase() {
+            stopCountdown();
+            const tempoEff = document.getElementById('cfgTempo').value * 60;
+            const intervallo = document.getElementById('cfgInt').value * 60;
+
+            if (currentPhase === 0) { // Fine Prepartita -> 1° Tempo
+                currentPhase = 1;
+                timeLeft = tempoEff;
+                const audio = document.getElementById('audioInizio');
+                audio.play();
+                audio.onended = () => startCountdown();
+            } else if (currentPhase === 1) { // Fine 1° Tempo -> Intervallo
+                currentPhase = 2;
+                document.getElementById('audioFine').play();
+                timeLeft = intervallo;
+                startCountdown(); // L'intervallo parte subito dopo il fischio finale
+            } else if (currentPhase === 2) { // Fine Intervallo -> 2° Tempo
+                currentPhase = 3;
+                timeLeft = tempoEff;
+                const audio = document.getElementById('audioInizio');
+                audio.play();
+                audio.onended = () => startCountdown();
+            } else if (currentPhase === 3) { // Fine 2° Tempo
+                document.getElementById('audioFine').play();
+                timeLeft = 0;
+                if (document.getElementById('sdEnabled').checked) {
+                    currentPhase = 4; // PRE SUDDEN DEATH
+                    timeLeft = 30; 
+                } 
+            } else if (currentPhase === 4) { // Fine Pre Sudden -> Sudden Death
+                currentPhase = 5;
+                timeLeft = 10 * 60;
+                const audio = document.getElementById('audioInizio');
+                audio.play();
+                audio.onended = () => startCountdown();
+            } else if (currentPhase === 5) { // Fine Sudden Death
+                document.getElementById('audioFine').play();
+            }
+            
+            document.getElementById('phaseSelector').value = currentPhase;
+            syncDisplay();
+        }
+
+        function resetMatch() {
+            if(confirm("Vuoi resettare la partita dall'inizio?")) {
+                location.reload();
+            }
+        }
+
+        window.onload = () => {
+            timeLeft = document.getElementById('cfgPre').value * 60;
+            syncDisplay();
+        };
+
+    </script>
+</body>
+</html>
