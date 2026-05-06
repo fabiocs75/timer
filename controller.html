@@ -263,8 +263,10 @@
                 document.getElementById('audioInizio').onended = () => startCountdown(); 
             }
             else if (currentPhase === 1) { 
-                currentPhase = 2; document.getElementById('audioFine').play(); 
-                timeLeft = cfgInt; startCountdown(); 
+                currentPhase = 2; 
+                document.getElementById('audioFine').play(); 
+                timeLeft = cfgInt; 
+                document.getElementById('audioFine').onended = () => startCountdown(); 
             }
             else if (currentPhase === 2) { 
                 currentPhase = 3; timeLeft = cfgTempo; 
@@ -274,12 +276,20 @@
             else if (currentPhase === 3) { 
                 document.getElementById('audioFine').play(); 
                 if (document.getElementById('sdEnabled').checked) { currentPhase = 4; timeLeft = 30; } 
-                else timeLeft = 0; 
+                else 
+                    {             
+                    currentPhase = 0;
+                    timeLeft = document.getElementById('cfgPre').value * 60;} 
             }
             else if (currentPhase === 4) { 
                 currentPhase = 5; timeLeft = cfgSD; 
                 document.getElementById('audioInizio').play(); 
                 document.getElementById('audioInizio').onended = () => startCountdown(); 
+            }
+            else if (currentPhase === 5) { 
+                document.getElementById('audioFine').play();
+                currentPhase = 0;
+                timeLeft = document.getElementById('cfgPre').value * 60;
             }
             
             document.getElementById('phaseSelector').value = currentPhase;
